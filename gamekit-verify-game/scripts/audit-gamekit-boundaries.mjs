@@ -39,6 +39,7 @@ const concreteGamekitPackages = [
   "@gamekits/driver-three",
   "@gamekits/input-dom",
   "@gamekits/multiplayer-colyseus",
+  "@gamekits/multiplayer-memory",
   "@gamekits/navigation-graph",
   "@gamekits/navigation-grid",
   "@gamekits/navigation-navmesh",
@@ -142,14 +143,39 @@ async function auditPackage(absolute, path) {
     return;
   }
   stats.packages += 1;
-  const dependencies = {
+  const runtimeDependencies = {
     ...(manifest.dependencies ?? {}),
     ...(manifest.peerDependencies ?? {}),
     ...(manifest.optionalDependencies ?? {})
   };
+  const declaredDependencies = {
+    ...runtimeDependencies,
+    ...(manifest.devDependencies ?? {})
+  };
+
+  const gamekitEntries = Object.entries(declaredDependencies)
+    .filter(([name]) => name.startsWith("@gamekits/"))
+    .sort(([left], [right]) => left.localeCompare(right));
+  const resolvedSpecs = new Set();
+
+  for (const [name, spec] of gamekitEntries) {
+    const normalized = String(spec).trim();
+    if (!normalized || normalized === "*" || normalized === "latest") {
+      add("error", "unpinned-gamekit-version", path, `${name} uses '${normalized || "empty"}'; use a verified prerelease channel or compatible version`);
+    }
+    if (/^[A-Za-z][A-Za-z+.-]*:/.test(normalized)) {
+      add("error", "non-registry-gamekit-source", path, `${name} must resolve from the npm registry`);
+    }
+    const version = normalized.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/)?.[0];
+    if (version) resolvedSpecs.add(version);
+  }
+
+  if (resolvedSpecs.size > 1) {
+    add("warning", "mixed-gamekit-versions", path, `Declared GameKit dependencies contain multiple explicit versions: ${[...resolvedSpecs].sort().join(", ")}`);
+  }
 
   if (!reusableCorePackages.has(manifest.name)) return;
-  for (const dependency of Object.keys(dependencies).sort()) {
+  for (const dependency of Object.keys(runtimeDependencies).sort()) {
     if (nativePackages.some((name) => matchesPackage(dependency, name)) ||
         concreteGamekitPackages.some((name) => matchesPackage(dependency, name))) {
       add(
@@ -177,6 +203,19 @@ async function auditSource(absolute, path) {
     const native = nativePackages.find((name) => matchesPackage(imported.specifier, name));
     const concrete = concreteGamekitPackages.find((name) => matchesPackage(imported.specifier, name));
     const react = imported.specifier === "react" || imported.specifier.startsWith("react-dom");
+    const testingSubpath = /^@gamekits\/[^/]+\/testing(?:\/|$)/.test(imported.specifier);
+    const implementationSubpath = /^@gamekits\/[^/]+\/(?:backend|playback)(?:\/|$)/.test(imported.specifier);
+    const serverSubpath = /^@gamekits\/multiplayer-colyseus\/server(?:\/|$)/.test(imported.specifier);
+
+    if (!test && testingSubpath) {
+      add("error", "testing-subpath-outside-test", path, `${imported.specifier} is a test-only public subpath`, lineOf(text, imported.index));
+    }
+    if (!test && implementationSubpath && !nativeBoundary) {
+      add("error", "implementation-subpath-outside-boundary", path, `${imported.specifier} belongs in adapter, driver, backend, or presentation code`, lineOf(text, imported.index));
+    }
+    if (!test && serverSubpath && !/(?:^|\/)(?:server|backend)(?:\/|[-_.])/i.test(path)) {
+      add("error", "server-subpath-outside-server", path, `${imported.specifier} belongs in server integration`, lineOf(text, imported.index));
+    }
 
     if (!test && react && gameplay && !nativeBoundary) {
       add("error", "react-in-gameplay", path, `${imported.specifier} is imported by gameplay/domain code`, lineOf(text, imported.index));

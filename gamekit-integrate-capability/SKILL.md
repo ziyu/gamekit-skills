@@ -13,7 +13,8 @@ Add one capability through the existing composition graph. Avoid app-local paral
 2. Inspect the exact installed GameKit scope, package versions, package manager, lockfile, and public exports.
 3. Locate the relevant current GameKit module document and the closest upstream app or conformance test.
 4. Read the relevant row and notes in [capability-map.md](references/capability-map.md).
-5. Search for existing handles, services, modules, DataTypes, adapters, and tests before creating anything.
+5. Use [npm-package-catalog.md](references/npm-package-catalog.md) to select the published semantic package, optional backend, supported public subpath, and install command.
+6. Search for existing handles, services, modules, DataTypes, adapters, and tests before creating anything.
 
 Do not assume every GameKit capability is published or on the same prerelease version. Add a compatible dependency closure rather than replacing all versions casually.
 
@@ -22,6 +23,7 @@ Do not assume every GameKit capability is published or on the same prerelease ve
 Install GameKit from the npm registry under the `@gamekits/*` scope:
 
 - Verify and install `@gamekits/<slug>` with the project's existing package manager, then import that exact package name.
+- Resolve `@gamekits/core@alpha` first and install the selected GameKit packages from the same channel or at explicitly compatible exact versions.
 - Do not add an import unless the published package was added as a direct dependency.
 - Never hand-edit package dependencies or the lockfile. Run the package manager so both remain synchronized.
 - If npm returns `E404`, report the capability as not currently published and do not invent another source or deep import.
@@ -40,6 +42,7 @@ import { initRapier2dPhysicsBackend } from "@gamekits/physics-rapier2d";
 ```
 
 Read the package's `exports` before using a subpath. Deep-importing unexported `src/` or `dist/` files is forbidden.
+After installation, inspect the resolved versions with `corepack pnpm list '@gamekits/*'` or the target package manager's equivalent.
 
 ## Write the integration contract
 

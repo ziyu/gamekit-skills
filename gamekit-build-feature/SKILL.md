@@ -22,6 +22,7 @@ State assumptions when game design is underspecified, but prefer a coherent smal
 Before adding an import, verify that its package is a direct dependency of the target app/package. Use the repository's existing package manager; never hand-edit the manifest or lockfile.
 
 - Query and install published npm packages under `@gamekits/*` with `alpha` or an exact verified version.
+- Keep newly selected GameKit packages on the app's existing verified channel or exact compatible version set.
 - Import the exact `@gamekits/*` package added to the manifest.
 - If npm returns `E404`, report the capability as not currently published and do not invent another source or deep import.
 
@@ -59,8 +60,10 @@ Also define rejection and edge behavior: invalid target, cooldown, insufficient 
 - Put hot authoritative state in World components or a bounded session runtime.
 - Put per-frame or fixed-step logic in systems.
 - Put low-frequency rules in TCA, GAS, Combat, or EventBus handlers when their semantics fit.
+- Put perception, utility goals, interruptible tasks, scheduling budgets, and semantic intents in `@gamekits/ai-core`; request routes through `@gamekits/navigation-core` and one selected backend.
+- Put reusable delivery, targeting, hits, and projectiles in `@gamekits/combat` while app policy, Physics, and GAS retain their own state ownership.
 - Put normalized input in Input actions/commands, not renderer callbacks.
-- Put RenderObject sync, animation, audio, particles, camera response, and native engine access in presentation.
+- Put semantic animation control in `@gamekits/animator-core` and logical audio playback in `@gamekits/audio-core`; keep RenderObject sync, particles, camera response, and native engine access in presentation.
 - Put React state in low-frequency UI views, windows, and commands.
 - Put long-lived semantic state in explicit SaveContributors.
 - Put bounded trace and snapshots beside the owning runtime without making diagnostics authoritative.

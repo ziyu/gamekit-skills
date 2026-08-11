@@ -6,10 +6,11 @@
 2. Architecture matrix
 3. Behavior matrix
 4. Lifecycle matrix
-5. Data, save, and multiplayer matrix
-6. Presentation and UI matrix
-7. Performance matrix
-8. Completion criteria
+5. Gameplay foundation matrix
+6. Data, save, and multiplayer matrix
+7. Presentation and UI matrix
+8. Performance matrix
+9. Completion criteria
 
 ## 1. Baseline inspection
 
@@ -29,9 +30,12 @@ Verify npm provenance with the target package manager, for example:
 ```bash
 corepack pnpm view @gamekits/core dist-tags --json
 corepack pnpm why @gamekits/core
+corepack pnpm list '@gamekits/*'
 ```
 
-GameKit packages can use different alpha versions or have different publication availability. A version difference is not automatically a defect; incompatible public contracts, source/import mismatch, missing lockfile evidence, or accidental broad upgrades are.
+Use one verified prerelease channel or explicitly compatible exact versions. Bare package names, `latest`, `*`, source/import mismatch, missing lockfile evidence, incompatible public contracts, and accidental broad upgrades are defects or release blockers according to impact.
+
+Review public subpaths by consumer: `/testing` belongs in tests, `/backend` and `/playback` belong in adapters/drivers, and `/server` belongs in server integration. Reusable gameplay imports package-root facades.
 
 ## 2. Architecture matrix
 
@@ -79,7 +83,47 @@ Prefer state and trace assertions over internal function-call assertions.
 
 Test cleanup directly. Garbage collection assumptions are not lifecycle evidence.
 
-## 5. Data, save, and multiplayer matrix
+## 5. Gameplay foundation matrix
+
+### AI
+
+- perception updates, utility ranking, task selection, interruption, and scheduling order are deterministic;
+- work budgets are bounded and exhaustion has defined continuation behavior;
+- tasks emit semantic intents through an app-owned sink instead of mutating Physics, Navigation, GAS, or presentation directly;
+- task cancellation and module disposal release pending work and handles;
+- traces explain goal/task choice and rejection without becoming an unbounded hot-path log.
+
+### Navigation
+
+- `@gamekits/navigation-core` owns request, path/field, status, route sampling, revision, and budget semantics;
+- exactly one selected Graph, Grid, or Recast backend owns backend-native queries and data;
+- layouts are registered before requests, revisions invalidate stale routes predictably, and released routes cannot be sampled;
+- pending, success, unreachable, invalid, cancelled, and backend-failure outcomes are covered;
+- query budgets, worker/native cleanup, and module ordering before AI are verified.
+
+### Combat
+
+- app policy owns factions, target relationships, damage formulas, and friendly-fire decisions;
+- Combat owns reusable targeting/delivery/hit/projectile semantics without taking ownership from World, Physics, or GAS;
+- duplicate contacts and one-hit policies do not apply effects twice;
+- projectiles, hitscan, and area delivery have deterministic lifetime, ordering, rejection, and cleanup;
+- authoritative effects occur before presentation cues and are proved headlessly.
+
+### Animator
+
+- definitions, parameters, transition priority, layers, markers, and playback frames behave deterministically;
+- marker bounds, repeated transitions, stop/dispose, and playback adapter failures are tested;
+- clips and markers never decide authoritative damage, movement completion, cooldown, or other gameplay outcomes;
+- native clip/mixer objects stay in driver/adapter or presentation code.
+
+### Audio
+
+- music, SFX, dialogue, category/mix, spatial state, pause/resume, and stop semantics are tested as used;
+- logical audio state is testable without native devices or node identity;
+- owner/category cleanup stops the intended playback and module/app disposal releases backend resources;
+- backend failure is observable and gameplay never depends on sound completion for authority.
+
+## 6. Data, save, and multiplayer matrix
 
 ### Data and assets
 
@@ -107,7 +151,7 @@ Test cleanup directly. Garbage collection assumptions are not lifecycle evidence
 - client playback advances between snapshots and prediction reconciles to authority;
 - disconnect/reconnect/dispose releases subscriptions and runtime ownership.
 
-## 6. Presentation and UI matrix
+## 7. Presentation and UI matrix
 
 - renderer sync patches only changed/required state and does not broadcast per-frame patches through EventBus;
 - native escape hatches are explicit, typed, owned, and disposed;
@@ -118,7 +162,7 @@ Test cleanup directly. Garbage collection assumptions are not lifecycle evidence
 - animations respect reduced motion and never block gameplay commands;
 - tests assert stable projection state rather than native object identity or DOM implementation details.
 
-## 7. Performance matrix
+## 8. Performance matrix
 
 Check the dimension touched by the change:
 
@@ -134,7 +178,7 @@ Check the dimension touched by the change:
 
 Profiler disabled paths should not allocate large temporary arrays, objects, closures, or React state every frame. Deep trace/detail modes should be opt-in and bounded. Use repository benchmarks as trend gates rather than writing brittle absolute-time unit tests.
 
-## 8. Completion criteria
+## 9. Completion criteria
 
 A GameKit change is ready when:
 

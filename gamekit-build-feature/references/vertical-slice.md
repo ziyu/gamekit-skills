@@ -6,8 +6,9 @@
 2. Layer selection
 3. Frequency and ownership rules
 4. Implementation patterns
-5. Test matrix
-6. Common incomplete features
+5. Foundation package selection
+6. Test matrix
+7. Common incomplete features
 
 ## 1. Slice worksheet
 
@@ -44,7 +45,7 @@ Use GAS for stable actor, ability, effect, cue, and clue semantics. Use Combat f
 
 ### Physics, navigation, and AI
 
-Use Physics for collision/query/solver-backed state, Navigation for path requests and backends, and AI for perception memory, goal/task selection, budgets, and trace. Connect them with narrow handles and app-owned intent policies; do not merge them into one game-specific manager.
+Use `@gamekits/physics-core` for collision/query/solver-backed state, `@gamekits/navigation-core` plus one backend for path requests, and `@gamekits/ai-core` for perception memory, goal/task selection, budgets, intents, and trace. Connect them with narrow handles and app-owned intent policies; do not merge them into one game-specific manager.
 
 ### Presentation and UI
 
@@ -95,7 +96,24 @@ Queue commands at the authority tick boundary, run the same gameplay contract, p
 
 Capture IDs and long-lived semantic values, include compatibility metadata, validate before restore, restore in a documented order, and let the app explicitly decide pause/resume. Recreate renderer/native objects from restored semantics.
 
-## 5. Test matrix
+## 5. Foundation package selection
+
+Install every selected package through the project's package manager before importing it.
+
+| Feature need | Packages | Boundary to preserve |
+| --- | --- | --- |
+| Ability effects | `@gamekits/gas` | App policy selects abilities/effects; GAS owns reusable execution semantics |
+| Physical combat | `@gamekits/combat`, `@gamekits/physics-core`, one Rapier backend when needed | Combat owns delivery; Physics owns queries/contacts; app owns formulas and factions |
+| Agent decisions | `@gamekits/ai-core` | AI emits semantic intents and never owns World, Physics, Navigation, or GAS |
+| Sparse authored routes | `@gamekits/navigation-core`, `@gamekits/navigation-graph` | Gameplay consumes core route handles; Graph remains a backend |
+| Tile/raster routes | `@gamekits/navigation-core`, `@gamekits/navigation-grid` | Grid coordinates and native data do not leak into reusable gameplay |
+| Free-form navmesh routes | `@gamekits/navigation-core`, `@gamekits/navigation-navmesh`, `@gamekits/navigation-recast` | Recast initialization and native objects stay in the backend boundary |
+| Semantic animation | `@gamekits/animator-core` | Markers can signal presentation but do not decide authoritative outcomes |
+| Music/SFX/dialogue | `@gamekits/audio-core` | Gameplay emits cues; backend owns devices, nodes, and native playback |
+
+Use `@alpha` or exact compatible versions consistently. Read package `exports` before using `/backend`, `/playback`, `/testing`, or `/server` subpaths.
+
+## 6. Test matrix
 
 | Risk | Minimum evidence |
 | --- | --- |
@@ -109,8 +127,13 @@ Capture IDs and long-lived semantic values, include compatibility metadata, vali
 | Save | Capture, validate, codec/store, restore, compatibility, migration if version changed |
 | Multiplayer | Authority order, invalid command, reconnect/replay behavior, prediction reconciliation |
 | Hot path | Benchmark/profiler delta and bounded allocation/trace behavior |
+| AI | Deterministic perception/goal/task order, budget exhaustion, cancellation, and emitted intents |
+| Navigation | Request status, route release, layout revision, backend failure, and query budget |
+| Combat | Target policy, one-hit/duplicate behavior, projectile lifetime, effect application, and authority order |
+| Animator | Transition/layer/marker semantics, playback adapter cleanup, and no gameplay authority from clips |
+| Audio | Category/mix behavior, owner cleanup, backend failure, and logical state independent of native handles |
 
-## 6. Common incomplete features
+## 7. Common incomplete features
 
 - An import was added without running the package manager, or the manifest/lockfile still lacks the direct dependency.
 - A GameKit import does not use the installed npm `@gamekits/*` package name.

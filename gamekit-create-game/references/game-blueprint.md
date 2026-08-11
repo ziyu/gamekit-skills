@@ -24,6 +24,8 @@ Answer these from the requested game, not from a generic template:
 | Platform | Web by default; Tauri through the platform adapter | Platform APIs do not enter gameplay |
 | Persistence | Add Save only after long-lived state exists | Do not save transient focus, hover, render handles, or caches |
 | Multiplayer | Start local-authority with the same command contract | Add a provider backend only for real room/transport needs |
+| AI and paths | `ai-core` plus Graph for sparse authored routes or Grid for tile spaces | Add NavMesh/Recast only when free-form navigation requires it |
+| Feedback | `animator-core` and `audio-core` only when the slice has semantic animation or sound cues | Gameplay remains authoritative over timing and outcomes |
 
 ## 2. Recommended project shape
 
@@ -82,6 +84,11 @@ Apply the same rule to every package in this guide. For example, install `@gamek
 Before installing a capability, run `corepack pnpm view @gamekits/<slug> dist-tags --json`. If npm returns `E404`, report that the package is not currently published and omit that capability. Do not invent another package source or import a private file path.
 
 Run package-manager commands from the project root so the manifest and lockfile update together. Use the project's existing package manager when it is not pnpm.
+Keep the selected GameKit packages on one verified prerelease channel or explicitly compatible exact versions. Confirm the installed set after every preset:
+
+```bash
+corepack pnpm list '@gamekits/*'
+```
 
 ## 4. Capability presets
 
@@ -149,6 +156,41 @@ Add only the semantic layers the design uses:
 - `@gamekits/combat` for reusable delivery and hit-resolution semantics;
 - `@gamekits/ai-core` plus navigation packages for agent decisions and paths;
 - `@gamekits/animator-core` and `@gamekits/audio-core` for semantic presentation control.
+
+Install only the bundle required by the first slice.
+
+#### Combat with Rapier 2D
+
+```bash
+corepack pnpm add @gamekits/gas@alpha @gamekits/physics-core@alpha @gamekits/physics-rapier2d@alpha @gamekits/combat@alpha
+```
+
+`@gamekits/combat` owns reusable delivery and hit-resolution semantics. The app still owns target relationships, damage formulas, and gameplay policy; Physics owns queries/contacts and GAS owns effects.
+
+#### AI with Graph or Grid navigation
+
+```bash
+corepack pnpm add @gamekits/ai-core@alpha @gamekits/navigation-core@alpha @gamekits/navigation-graph@alpha
+corepack pnpm add @gamekits/ai-core@alpha @gamekits/navigation-core@alpha @gamekits/navigation-grid@alpha
+```
+
+Use Graph for sparse authored routes and Grid for deterministic tile/raster spaces. Install the navigation module before the AI module so tasks can request paths through a ready handle.
+
+#### AI with Recast navigation
+
+```bash
+corepack pnpm add @gamekits/ai-core@alpha @gamekits/navigation-core@alpha @gamekits/navigation-navmesh@alpha @gamekits/navigation-recast@alpha
+```
+
+Keep Recast initialization and native data inside the navigation backend boundary. Gameplay and AI consume `@gamekits/navigation-core` handles and route semantics.
+
+#### Animator and audio presentation
+
+```bash
+corepack pnpm add @gamekits/animator-core@alpha @gamekits/audio-core@alpha @gamekits/asset@alpha @gamekits/renderer-core@alpha
+```
+
+Use `@gamekits/animator-core` for semantic states, transitions, layers, parameters, and markers. Use `@gamekits/audio-core` for logical music, SFX, dialogue, mix, and spatial playback. Native clips, mixers, audio nodes, and device APIs stay in drivers or adapters.
 
 ## 5. Composition sequence
 

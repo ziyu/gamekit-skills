@@ -20,13 +20,16 @@ Confirm that dependencies come from published npm packages under `@gamekits/*`:
 
 - Every GameKit import must use the exact installed `@gamekits/*` package name.
 - Every imported GameKit package must be a direct dependency of the importing app/package.
+- The selected GameKit packages must resolve from one verified prerelease channel or an explicitly compatible exact-version set; bare packages, `latest`, and `*` are not acceptable prerelease pins.
 - Manifest and lockfile changes must come from the repository's package manager, not manual edits.
+- `/testing` is test-only, `/backend` and `/playback` belong in adapter/driver code, and `/server` belongs in server integration. Gameplay code uses package-root facades.
 
 For npm consumers, verify the installed channel and source explicitly:
 
 ```bash
 corepack pnpm view @gamekits/core dist-tags --json
 corepack pnpm why @gamekits/core
+corepack pnpm list '@gamekits/*'
 ```
 
 Treat an `E404` for `@gamekits/<slug>` as evidence that the capability is not currently published. Do not invent another source or deep import.

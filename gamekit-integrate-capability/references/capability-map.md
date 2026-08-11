@@ -36,6 +36,7 @@ import { defineGameApp } from "@gamekits/app-host";
 Verify each `@gamekits/<slug>` separately. If npm returns `E404`, report that the capability is not currently published and omit it.
 
 Install GameKit packages that the target imports as direct dependencies. Install peers such as React, ReactDOM, Vitest, or Tauri APIs explicitly when the selected published package declares them.
+Use [npm-package-catalog.md](npm-package-catalog.md) for the complete published package list, supported public subpaths, and ready-to-run installation bundles.
 
 ## 3. Capability table
 
@@ -66,6 +67,8 @@ Verify the current upstream docs and package exports before implementation.
 | UI | `ui-core`, `react-ui` | Service/UI shell | UI consumes low-frequency snapshots and sends commands; React does not run gameplay |
 | DevTools | `devtools`, `devtools-ui` | Service/tool UI | Observe stable sources and bounded traces without becoming a gameplay dependency |
 | Test utilities | `test-utils` | Test only | Reuse protocol-compatible memory/headless fixtures and conformance helpers |
+
+The package names in this table are slugs. Install and import them with the full npm scope, for example `@gamekits/ai-core`, `@gamekits/combat`, and `@gamekits/navigation-grid`.
 
 ## 4. Integration chains
 
