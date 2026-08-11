@@ -1,0 +1,32 @@
+{
+  "name": "gamekit-example-neon-rupture",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@gamekit/app-host": "link:../../../gamekit/packages/app-host",
+    "@gamekit/core": "link:../../../gamekit/packages/core",
+    "@gamekit/driver-core": "link:../../../gamekit/packages/driver-core",
+    "@gamekit/event-bus": "link:../../../gamekit/packages/event-bus",
+    "@gamekit/game-runtime": "link:../../../gamekit/packages/game-runtime",
+    "@gamekit/input-core": "link:../../../gamekit/packages/input-core",
+    "@gamekit/input-dom": "link:../../../gamekit/packages/input-dom",
+    "@gamekit/renderer-core": "link:../../../gamekit/packages/renderer-core",
+    "@gamekit/world": "link:../../../gamekit/packages/world",
+    "@gamekit/world-koota": "link:../../../gamekit/packages/world-koota",
+    "three": "^0.179.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.179.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.1",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "GameKit Verify Game"
+  short_description: "Audit and verify GameKit architecture and behavior"
+  default_prompt: "Use $gamekit-verify-game to audit this GameKit game and close its verification gaps."

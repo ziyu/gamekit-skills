@@ -1,0 +1,4 @@
+interface:
+  display_name: "GameKit Integrate Capability"
+  short_description: "Integrate GameKit capabilities across correct boundaries"
+  default_prompt: "Use $gamekit-integrate-capability to add a GameKit capability to this game without crossing architecture boundaries."
