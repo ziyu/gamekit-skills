@@ -1,4 +1,4 @@
-# GameKit vertical-slice guide
+# GameKits vertical-slice guide
 
 ## Contents
 
@@ -76,6 +76,8 @@ Use SaveContributors for durable semantic state. Use multiplayer command/replica
 
 Normalize device input to a semantic action. Store held/axis state in an input state object or component. Let a system consume it during tick. Presentation reads the resulting World state.
 
+Sustained actions clear on both `released` and `cancelled`, including focus/scope changes and Host stop. For Character Controller, map intent to world space in app composition and buffer jump/dive edges until a fixed tick consumes them. Run the compiled motor against stable Physics observations before the solver step. Player and AI use the same motor; gameplay does not duplicate locomotion timers or write native velocity.
+
 ### Fact to rule
 
 Emit a small low-frequency fact after authoritative state changed. Carry correlation metadata in the event envelope. Let TCA or another module react without using the fact as the high-frequency state store.
@@ -92,17 +94,29 @@ Advance physics at fixed step, convert backend contact to the stable Physics con
 
 Queue commands at the authority tick boundary, run the same gameplay contract, publish stable snapshots/records, advance client playback even between network messages, reconcile predictions, and apply presented values through app presentation hooks.
 
+Implement ordinary clients through standard module `clientReplication`. App code provides deterministic transitions and final frame writes; Core owns scheduling, acknowledgement, playback, and correction. Use managed prediction domains and Physics islands where needed. Restore motor/body checkpoints together; reset on generation or membership changes. Bound replay and suppress duplicate audio, hit, and spawn effects during resimulation.
+
 ### Save round-trip
 
 Capture IDs and long-lived semantic values, include compatibility metadata, validate before restore, restore in a documented order, and let the app explicitly decide pause/resume. Recreate renderer/native objects from restored semantics.
+
+Validate all selected required sections before the first restore. When replacing a live game, use `createSaveSessionController` with isolated mutable state and a captured envelope. Candidate failure keeps the old session; post-commit `cleanupError` does not mean load failed. Suspend save entrypoints during the switch. Handle IndexedDB revision conflict, backup recovery, and quota failure visibly without blindly retrying an overwrite.
+
+### Scene resource lifetime
+
+Give scene/UI owners an AssetScope and keep shared resources retained while in use. Dispose render objects and stop audio before awaiting scope disposal. Cancellation must not invalidate another consumer's load; late adapter results still need cleanup. Test shared ownership, cancellation, and budget exhaustion when the feature changes those paths.
 
 ## 5. Foundation package selection
 
 Install every selected package through the project's package manager before importing it.
 
+Use the app's exact GameKits release for additions. For an authorized upgrade, resolve the target once and move the selected dependency closure together; a shared moving tag is not proof of alignment.
+
 | Feature need | Packages | Boundary to preserve |
 | --- | --- | --- |
 | Ability effects | `@gamekits/gas` | App policy selects abilities/effects; GAS owns reusable execution semantics |
+| Character locomotion | `@gamekits/character-controller`, `@gamekits/physics-core`, selected backend | Compiled motor owns locomotion state; input/camera conversion stays in the app |
+| Durable browser progress | `@gamekits/save`, `@gamekits/save-indexeddb` | App/profile selects the store; contributors and candidate sessions own game state |
 | Physical combat | `@gamekits/combat`, `@gamekits/physics-core`, one Rapier backend when needed | Combat owns delivery; Physics owns queries/contacts; app owns formulas and factions |
 | Agent decisions | `@gamekits/ai-core` | AI emits semantic intents and never owns World, Physics, Navigation, or GAS |
 | Sparse authored routes | `@gamekits/navigation-core`, `@gamekits/navigation-graph` | Gameplay consumes core route handles; Graph remains a backend |
@@ -111,7 +125,7 @@ Install every selected package through the project's package manager before impo
 | Semantic animation | `@gamekits/animator-core` | Markers can signal presentation but do not decide authoritative outcomes |
 | Music/SFX/dialogue | `@gamekits/audio-core` | Gameplay emits cues; backend owns devices, nodes, and native playback |
 
-Use `@alpha` or exact compatible versions consistently. Read package `exports` before using `/backend`, `/playback`, `/testing`, or `/server` subpaths.
+Use one verified exact release consistently. Read package `exports` before using `/backend`, `/playback`, `/testing`, or `/server` subpaths.
 
 ## 6. Test matrix
 
@@ -136,7 +150,7 @@ Use `@alpha` or exact compatible versions consistently. Read package `exports` b
 ## 7. Common incomplete features
 
 - An import was added without running the package manager, or the manifest/lockfile still lacks the direct dependency.
-- A GameKit import does not use the installed npm `@gamekits/*` package name.
+- A GameKits import does not use the installed npm `@gamekits/*` package name.
 - A button or animation exists, but no authoritative rule changes state.
 - A rule works, but raw input bypasses scope/context and fires while UI has focus.
 - State changes, but no trace explains rejection or execution.

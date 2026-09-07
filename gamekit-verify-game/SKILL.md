@@ -1,26 +1,26 @@
 ---
 name: gamekit-verify-game
-description: Audit, test, diagnose, and close completeness gaps in a GameKit-based TypeScript game. Use when reviewing architecture boundaries, validating App Host or GameModule lifecycle, checking forbidden backend/UI coupling, assessing feature readiness, adding missing tests or diagnostics, investigating regressions, or preparing a GameKit app for handoff or release.
+description: Audit, test, diagnose, and close completeness gaps in a GameKits-based TypeScript game. Use when reviewing architecture boundaries, validating App Host or GameModule lifecycle, checking forbidden backend/UI coupling, assessing feature readiness, adding missing tests or diagnostics, investigating regressions, or preparing a GameKits app for handoff or release.
 ---
 
-# Verify a GameKit Game
+# Verify a GameKits Game
 
 Prove behavior and architecture with repository evidence. Treat the bundled audit as a triage aid, not a substitute for reading code and running tests.
 
 ## Establish scope
 
-1. Read repository instructions, current changes, package scripts, app definitions/profiles, and relevant GameKit design documents.
-2. Inspect the package manager, manifest, lockfile, installed GameKit scope, versions, source, and public exports.
+1. Read repository instructions, current changes, package scripts, app definitions/profiles, and relevant GameKits design documents.
+2. Inspect the package manager, manifest, lockfile, installed GameKits scope, versions, source, and public exports.
 3. Determine whether the request is diagnosis/review only or authorizes fixes. Do not mutate code for a review-only request.
-4. Read [verification-matrix.md](references/verification-matrix.md) and select checks proportional to the affected layers.
+4. Read [verification-matrix.md](references/verification-matrix.md) and select checks proportional to the affected layers, including cancellation, failed lifecycle cleanup, shared assets, save conflicts/staged recovery, and managed prediction when relevant.
 
 ## Verify package provenance
 
 Confirm that dependencies come from published npm packages under `@gamekits/*`:
 
-- Every GameKit import must use the exact installed `@gamekits/*` package name.
-- Every imported GameKit package must be a direct dependency of the importing app/package.
-- The selected GameKit packages must resolve from one verified prerelease channel or an explicitly compatible exact-version set; bare packages, `latest`, and `*` are not acceptable prerelease pins.
+- Every GameKits import must use the exact installed `@gamekits/*` package name.
+- Every imported GameKits package must be a direct dependency of the importing app/package.
+- GameKits uses lockstep releases: verify one exact resolved version across the manifest, lockfile, and installed selected package set. A shared moving tag does not prove version alignment; bare packages, `latest`, and `*` are not acceptable prerelease pins.
 - Manifest and lockfile changes must come from the repository's package manager, not manual edits.
 - `/testing` is test-only, `/backend` and `/playback` belong in adapter/driver code, and `/server` belongs in server integration. Gameplay code uses package-root facades.
 
@@ -49,7 +49,9 @@ node scripts/audit-gamekit-boundaries.mjs /path/to/game --json
 node scripts/audit-gamekit-boundaries.mjs /path/to/game --strict
 ```
 
-Review every finding in context. The script deliberately reports some native imports and listener patterns as warnings because app presentation, server, backend, DevTools, and explicit escape hatches may be valid.
+Review every finding in context. The script recognizes legacy scope usage, Character Controller as a reusable toolkit, and IndexedDB Save as a concrete adapter. Some native imports and listener patterns are warnings because app composition and explicit escape hatches may be valid. It does not resolve lockfiles, prove direct-dependency coverage, or verify lifecycle behavior; check those separately.
+
+When changing this audit, run its regression fixtures with `node --test scripts/audit-gamekit-boundaries.test.mjs`.
 
 ## Trace the runtime path
 

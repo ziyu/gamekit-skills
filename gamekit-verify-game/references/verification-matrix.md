@@ -1,4 +1,4 @@
-# GameKit verification matrix
+# GameKits verification matrix
 
 ## Contents
 
@@ -18,12 +18,12 @@ Collect before judging code:
 
 - repository instructions and dirty state;
 - package manager and actual scripts;
-- installed GameKit scope, package source, versions, dist-tag, package exports, and lockfile entries;
+- installed GameKits scope, package source, versions, dist-tag, package exports, and lockfile entries;
 - app `GameAppDefinition`, profiles, service graph, and standard/app module assembly;
 - closest upstream example and module design document;
 - feature tests, integration tests, conformance helpers, and benchmarks already present.
 
-GameKit packages are published under `@gamekits/*`. Every import must match a direct npm dependency installed with a verified dist-tag or exact version. Importing an undeclared package, bypassing the package manager, or missing lockfile evidence is a defect.
+GameKits packages are published under `@gamekits/*`. Every import must match a direct npm dependency installed with a verified dist-tag or exact version. Importing an undeclared package, bypassing the package manager, or missing lockfile evidence is a defect.
 
 Verify npm provenance with the target package manager, for example:
 
@@ -33,7 +33,7 @@ corepack pnpm why @gamekits/core
 corepack pnpm list '@gamekits/*'
 ```
 
-Use one verified prerelease channel or explicitly compatible exact versions. Bare package names, `latest`, `*`, source/import mismatch, missing lockfile evidence, incompatible public contracts, and accidental broad upgrades are defects or release blockers according to impact.
+GameKits uses lockstep releases. Check one exact version across selected direct and internal dependencies using manifest, lockfile, and installed package evidence; tags alone do not prove alignment. Bare package names, `latest`, `*`, source/import mismatch, missing lockfile evidence, incompatible public contracts, and accidental broad upgrades are defects or release blockers according to impact. Legacy `@gamekit/*` imports and dependency aliases need migration to the actual installed `@gamekits/*` package.
 
 Review public subpaths by consumer: `/testing` belongs in tests, `/backend` and `/playback` belong in adapters/drivers, and `/server` belongs in server integration. Reusable gameplay imports package-root facades.
 
@@ -83,7 +83,20 @@ Prefer state and trace assertions over internal function-call assertions.
 
 Test cleanup directly. Garbage collection assumptions are not lifecycle evidence.
 
+Include failed and overlapping lifecycle requests: Host hooks are awaited and serialized; a failed dependency prevents consumers from starting; dispose is terminal even with queued start requests. Failed module installation releases already installed modules; the failing module cleans up resources acquired before returning its cleanup. Stop/dispose continues after a listener or cleanup throws and reports all failures. Do not require `stop()` to remove subscriptions that the module contract retains until dispose.
+
+Input tests cover held state becoming neutral on `cancelAll()`, context/scope loss, blur and stop without physical release. Polling sources run before held ticks and own no private RAF/timer. One-shot actions must not accidentally fire from cancellation.
+
 ## 5. Gameplay foundation matrix
+
+### Character Controller
+
+- compile and validate motor definitions once; identical state/intent/observation/fixed delta yields identical output;
+- preserve jump/dive edges between render sampling and fixed ticks, consuming each sequence once;
+- cover relevant ground, slope, step, ceiling, coyote/jump buffer, moving platform and external impulse behavior with the selected backend;
+- player and AI share the same intent/motor path, without camera/native/animation state in checkpoints;
+- prediction restores body and motor timers at the same tick and resets contributors on generation/membership changes;
+- use `physics-core/testing` only in tests; a memory fixture does not prove native collision behavior.
 
 ### AI
 
@@ -133,6 +146,8 @@ Test cleanup directly. Garbage collection assumptions are not lifecycle evidence
 - load failure is not mislabeled as DataRegistry schema failure;
 - runtime state never writes back into immutable definitions.
 
+For scoped assets, verify independent/same-name scopes, shared ownership, last-owner unload, cancellation with another waiter, cleanup of late results, and repeated dispose. Test residency limits with retained assets and valid `estimatedBytes`; unowned cache may be evicted, retained resources may not. Confirm objects/playback are destroyed before scope/manager/Driver cleanup, and inspect lifecycle diagnostics instead of assuming native resources were freed.
+
 ### Save
 
 - contributors declare stable IDs, scope/tags, version, capture, validate, and restore behavior;
@@ -140,6 +155,10 @@ Test cleanup directly. Garbage collection assumptions are not lifecycle evidence
 - compatibility and migrations are tested when versions changed;
 - restore order and app pause/resume policy are explicit;
 - save/load does not implicitly tick GameRuntime.
+
+All selected required sections, identity and exact versions are validated before any restore. Test candidate construction, restore and activation failures with the old session intact; a successful switch plus old cleanup failure returns `cleanupError` without reapplying the save. Candidate mutable state and SaveManagers are isolated; shared store/Driver ownership survives candidate failure. Save entrypoints stay suspended during load.
+
+For IndexedDB, cover unobserved/stale revision conflicts across connections, failed transaction/quota preserving old data, corrupted primary recovery, explicit backup selection, and connection disposal/versionchange. Use a browser smoke as well as a test-only IndexedDB fixture. `list/exists` must not silently authorize overwrite. File adapters require atomic `replaceFile` and `remove`; do not claim storage transactions imply arbitrary restore rollback.
 
 ### Multiplayer
 
@@ -150,6 +169,8 @@ Test cleanup directly. Garbage collection assumptions are not lifecycle evidence
 - provider room/Schema/transport objects remain backend or app server details;
 - client playback advances between snapshots and prediction reconciles to authority;
 - disconnect/reconnect/dispose releases subscriptions and runtime ownership.
+
+Ordinary clients use Core-managed `clientReplication`; callbacks do not duplicate playback/predict/reconcile scheduling. Test stale generation rejection, complete membership/definition resets, prediction lead and history limits, and loss/reordering with bounded redundant delivery. Acknowledgements advance only over simulated contiguous input. Physics islands restore complete authority-declared membership and motor/body state together; replay does not duplicate gameplay/presentation effects. Include diagnostics for exhausted resimulation budgets.
 
 ## 7. Presentation and UI matrix
 
@@ -180,7 +201,7 @@ Profiler disabled paths should not allocate large temporary arrays, objects, clo
 
 ## 9. Completion criteria
 
-A GameKit change is ready when:
+A GameKits change is ready when:
 
 - acceptance behavior and important rejection paths pass deterministically;
 - state, lifecycle, and authority owners are unambiguous;

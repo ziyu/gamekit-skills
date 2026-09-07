@@ -1,4 +1,4 @@
 interface:
-  display_name: "GameKit Build Feature"
-  short_description: "Build end-to-end gameplay features on GameKit"
+  display_name: "GameKits Build Feature"
+  short_description: "Build end-to-end gameplay features on GameKits"
   default_prompt: "Use $gamekit-build-feature to implement this gameplay feature as a tested vertical slice."

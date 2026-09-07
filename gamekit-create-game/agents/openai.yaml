@@ -1,4 +1,4 @@
 interface:
-  display_name: "GameKit Create Game"
-  short_description: "Create a GameKit game from a tested vertical slice"
-  default_prompt: "Use $gamekit-create-game to create a new GameKit game with a minimal playable vertical slice."
+  display_name: "GameKits Create Game"
+  short_description: "Create a GameKits game from a tested vertical slice"
+  default_prompt: "Use $gamekit-create-game to create a new GameKits game with a minimal playable vertical slice."

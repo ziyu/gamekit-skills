@@ -1,38 +1,38 @@
 ---
 name: gamekit-create-game
-description: Create a new TypeScript game or playable prototype on top of the ziyu/gamekit framework. Use when Codex needs to bootstrap a GameKit app, choose packages and a renderer/platform profile, define the initial GameAppDefinition and AppProfile, create a headless test path, or turn a game idea into the first tested vertical slice.
+description: Create a new TypeScript game or playable prototype on top of the ziyu/gamekits framework. Use when Codex needs to bootstrap a GameKits app, choose packages and a renderer/platform profile, define the initial GameAppDefinition and AppProfile, create a headless test path, or turn a game idea into the first tested vertical slice.
 ---
 
-# Create a GameKit Game
+# Create a GameKits Game
 
-Create the smallest playable, testable slice first. Treat GameKit as a composable game framework, not a monolithic engine or a source tree to copy wholesale.
+Create the smallest playable, testable slice first. Treat GameKits as a composable game framework, not a monolithic engine or a source tree to copy wholesale.
 
 ## Establish the live baseline
 
 1. Read the target repository instructions and existing design documents.
 2. Inspect the package manager, installed `@gamekits/*` versions, public exports, scripts, and TypeScript settings.
-3. Read current official GameKit documentation and the closest official example on GitHub when architecture detail is needed.
-4. Prefer installed declarations and package exports over remembered APIs. GameKit packages may be prereleases; resolve the active channel before selecting versions.
-5. Read [game-blueprint.md](references/game-blueprint.md) before choosing the initial package set or file layout.
+3. Read current official GameKits documentation and the closest official example on GitHub when architecture detail is needed.
+4. Prefer installed declarations and package exports over remembered APIs. GameKits packages may be prereleases; resolve the active channel before selecting versions.
+5. Read [game-blueprint.md](references/game-blueprint.md) before choosing the initial package set or file layout; it covers character movement, scoped assets, durable browser saves, and managed multiplayer presets.
 
 If upstream source is unavailable, inspect the installed package manifests and declaration files. Do not invent an API from package names alone.
 
-## Install GameKit packages
+## Install GameKits packages
 
 Use the target repository's existing package manager. Do not hand-edit dependencies or the lockfile.
 
-- Install GameKit exclusively from the npm registry under the `@gamekits/*` scope.
+- Install GameKits exclusively from the npm registry under the `@gamekits/*` scope.
 - Verify every requested package and dist-tag before installation.
-- Use one verified prerelease channel or an explicitly compatible exact-version set across the selected GameKit packages.
+- GameKits uses lockstep releases. Resolve the chosen channel once, verify every selected package at that exact version, and pin the same version throughout the app. Adding a capability to an existing app uses its installed version unless an upgrade is requested.
 - If `@gamekits/<slug>` returns `E404`, report that the capability is not currently published and do not invent another source or deep import.
-- Install every package the app imports directly, even when another GameKit package currently depends on it transitively.
+- Install every package the app imports directly, even when another GameKits package currently depends on it transitively.
 - Import only the package root or documented `exports` subpaths.
 
-For a project using the npm alpha channel:
+For a new app, resolve `core@alpha` once and use that version for every selected package. The commands below show the verified `0.1.0-alpha.9` baseline; adjust all pins together when selecting another release. `latest` may lag behind `alpha`.
 
 ```bash
-corepack pnpm view @gamekits/core dist-tags --json
-corepack pnpm add @gamekits/core@alpha @gamekits/event-bus@alpha
+corepack pnpm view @gamekits/core@alpha version
+corepack pnpm add --save-exact @gamekits/core@0.1.0-alpha.9 @gamekits/event-bus@0.1.0-alpha.9
 corepack pnpm list '@gamekits/*'
 ```
 
@@ -59,7 +59,7 @@ Use `GameAppDefinition` to declare which services the app needs. Use `AppProfile
 Classify each capability before implementing it:
 
 - Put platform, driver, renderer, assets, audio, input sources, multiplayer connection, UI shell, save store, and DevTools lifecycle in App Services.
-- Put world/tick behavior, camera, physics, combat, TCA, GAS, AI, navigation, animator control, replication command handling, and gameplay save bridges in Game Modules.
+- Put world/tick behavior, camera, physics, character locomotion, combat, TCA, GAS, AI, navigation, animator control, replication command handling, and gameplay save bridges in Game Modules.
 - Put Phaser or Three runtime ownership in a Driver. Use an Adapter only for a single protocol mapping.
 - Keep game-specific content, policies, schemas, and presentation in the app.
 
@@ -69,7 +69,7 @@ Do not make `GameRuntime` own application adapters. Do not put gameplay rules in
 
 1. Create app definition and configuration defaults without DOM or native runtime handles.
 2. Create at least one production-facing profile and one deterministic/headless test profile when the app has meaningful runtime behavior.
-3. Create the world, EventBus, runtime, and game modules through public GameKit APIs.
+3. Create the world, EventBus, runtime, and game modules through public GameKits APIs.
 4. Register only the DataTypes and DataPacks required by the initial slice.
 5. Add the selected driver/adapter and keep native access inside profile, presentation, backend, or explicitly named native files.
 6. Normalize input into actions or commands before gameplay consumes it.
@@ -99,4 +99,4 @@ Check that `stop()` prevents further systems from running and `dispose()` releas
 - Do not use React as the gameplay loop or authoritative state store.
 - Do not write runtime state back into DataRegistry.
 - Do not add a framework abstraction without a real second consumer or variation point.
-- If the initial slice exposes a missing reusable GameKit capability, stop treating it as app-local only after checking the framework extension and ADR requirements.
+- If the initial slice exposes a missing reusable GameKits capability, stop treating it as app-local only after checking the framework extension and ADR requirements.

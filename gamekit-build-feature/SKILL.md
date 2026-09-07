@@ -1,19 +1,19 @@
 ---
 name: gamekit-build-feature
-description: Implement or complete an end-to-end gameplay feature in an existing GameKit game. Use when adding mechanics, actors, abilities, effects, enemies, objectives, interaction, input actions, content, presentation, UI feedback, persistence, diagnostics, or when turning a partial GameKit feature into a playable and tested vertical slice.
+description: Implement or complete an end-to-end gameplay feature in an existing GameKits game. Use when adding mechanics, actors, abilities, effects, enemies, objectives, interaction, input actions, content, presentation, UI feedback, persistence, diagnostics, or when turning a partial GameKits feature into a playable and tested vertical slice.
 ---
 
-# Build a GameKit Feature
+# Build a GameKits Feature
 
 Implement one observable gameplay outcome across the minimum required layers. Keep authoritative rules independent from renderer and UI concerns.
 
 ## Reconstruct the current feature path
 
 1. Read repository instructions and the app's design, profile, runtime, content, presentation, UI, save, and test files relevant to the request.
-2. Inspect the package manager, lockfile, GameKit package scope, installed versions, and public imports before using an API.
+2. Inspect the package manager, lockfile, GameKits package scope, installed versions, and public imports before using an API.
 3. Trace the nearest working feature from intent through runtime to visible result and tests.
 4. Identify the owning module and state. Extend it when appropriate instead of starting a parallel runtime.
-5. Read [vertical-slice.md](references/vertical-slice.md) and choose only the layers the feature actually needs.
+5. Read [vertical-slice.md](references/vertical-slice.md) and choose only the layers the feature needs; use its character input, scoped resource, staged restore, and managed prediction patterns when those paths change.
 
 State assumptions when game design is underspecified, but prefer a coherent small behavior over a broad unfinished system.
 
@@ -21,16 +21,16 @@ State assumptions when game design is underspecified, but prefer a coherent smal
 
 Before adding an import, verify that its package is a direct dependency of the target app/package. Use the repository's existing package manager; never hand-edit the manifest or lockfile.
 
-- Query and install published npm packages under `@gamekits/*` with `alpha` or an exact verified version.
-- Keep newly selected GameKit packages on the app's existing verified channel or exact compatible version set.
+- Install published `@gamekits/*` packages at the app’s installed exact version. GameKits uses lockstep releases.
+- If an upgrade is requested, resolve the target channel once, verify every required package at that exact version, and upgrade the selected dependency closure together; do not mix independently resolved tags.
 - Import the exact `@gamekits/*` package added to the manifest.
 - If npm returns `E404`, report the capability as not currently published and do not invent another source or deep import.
 
-Example for adding GAS to a standalone game:
+Example for adding GAS to a game on the verified `0.1.0-alpha.9` baseline (substitute the game’s exact version):
 
 ```bash
 corepack pnpm view @gamekits/gas dist-tags --json
-corepack pnpm add @gamekits/gas@alpha
+corepack pnpm add --save-exact @gamekits/gas@0.1.0-alpha.9
 ```
 
 ```ts

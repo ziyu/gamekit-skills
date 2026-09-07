@@ -1,39 +1,39 @@
 ---
 name: gamekit-integrate-capability
-description: Integrate a published GameKit framework capability into an existing TypeScript game while preserving App Host, GameModule, Driver, Adapter, data, lifecycle, package-source, and test boundaries. Use when installing or adding physics, combat, TCA, GAS, AI, navigation, animation, audio, input, camera, rendering, assets, save, multiplayer, platform, UI, DevTools, or another @gamekits/* npm package.
+description: Install or integrate GameKits capabilities into an existing TypeScript game. Use when adding or upgrading @gamekits/* packages or wiring their profiles, modules, drivers, storage, prediction, and lifecycle boundaries.
 ---
 
-# Integrate a GameKit Capability
+# Integrate a GameKits Capability
 
-Add one capability through the existing composition graph. Avoid app-local parallel runtimes that duplicate a GameKit core semantic owner.
+Add one capability through the existing composition graph. Avoid app-local parallel runtimes that duplicate a GameKits core semantic owner.
 
 ## Build the capability baseline
 
 1. Read repository instructions, architecture documents, package manifests, and the current app definition/profile/runtime composition.
-2. Inspect the exact installed GameKit scope, package versions, package manager, lockfile, and public exports.
-3. Locate the relevant current GameKit module document and the closest upstream app or conformance test.
-4. Read the relevant row and notes in [capability-map.md](references/capability-map.md).
+2. Inspect the exact installed GameKits scope, package versions, package manager, lockfile, and public exports.
+3. Locate the relevant current GameKits module document and the closest upstream app or conformance test.
+4. Read the relevant row and integration chain in [capability-map.md](references/capability-map.md), including resource scopes, staged save recovery, character motor ordering, or managed replication when applicable.
 5. Use [npm-package-catalog.md](references/npm-package-catalog.md) to select the published semantic package, optional backend, supported public subpath, and install command.
 6. Search for existing handles, services, modules, DataTypes, adapters, and tests before creating anything.
 
-Do not assume every GameKit capability is published or on the same prerelease version. Add a compatible dependency closure rather than replacing all versions casually.
+GameKits uses lockstep releases. Add capabilities at the app’s installed exact version. For a requested upgrade, resolve the chosen channel once, verify the full selected package set, and upgrade its dependency closure together. A missing version requires an explicit upgrade decision, not a mixed release set.
 
 ## Resolve package source before importing
 
-Install GameKit from the npm registry under the `@gamekits/*` scope:
+Install GameKits from the npm registry under the `@gamekits/*` scope:
 
 - Verify and install `@gamekits/<slug>` with the project's existing package manager, then import that exact package name.
-- Resolve `@gamekits/core@alpha` first and install the selected GameKit packages from the same channel or at explicitly compatible exact versions.
+- For a new app or requested upgrade, resolve `@gamekits/core@alpha` once and pin every selected GameKits package to that exact version. Do not independently install moving tags; `latest` may lag behind `alpha`.
 - Do not add an import unless the published package was added as a direct dependency.
 - Never hand-edit package dependencies or the lockfile. Run the package manager so both remain synchronized.
 - If npm returns `E404`, report the capability as not currently published and do not invent another source or deep import.
 
-Example for a standalone physics integration:
+Example for a physics integration into an app on the verified `0.1.0-alpha.9` baseline (substitute the app’s exact version throughout):
 
 ```bash
 corepack pnpm view @gamekits/physics-core dist-tags --json
 corepack pnpm view @gamekits/physics-rapier2d dist-tags --json
-corepack pnpm add @gamekits/physics-core@alpha @gamekits/physics-rapier2d@alpha
+corepack pnpm add --save-exact @gamekits/physics-core@0.1.0-alpha.9 @gamekits/physics-rapier2d@0.1.0-alpha.9
 ```
 
 ```ts
@@ -76,7 +76,7 @@ Use the existing Driver as the sole owner of an integrated external runtime. Sel
 
 ### 4. Install session behavior
 
-Add camera, physics, combat, TCA, GAS, AI, navigation, animator, multiplayer command handling, and gameplay save bridges as Game Modules. Prefer a current standard module helper when it matches the requirement. Use an app module when app policies, content, or ordering are specific.
+Add camera, physics, character locomotion, combat, TCA, GAS, AI, navigation, animator, multiplayer command handling, and gameplay save bridges as Game Modules. Prefer a current standard module helper when it matches the requirement. Use an app module when app policies, content, or ordering are specific.
 
 When module order affects behavior, assemble the modules explicitly and test the install/system order and reverse cleanup order.
 
@@ -107,6 +107,6 @@ Compare snapshots only on stable semantic data, never DOM nodes, native handles,
 
 - Reuse core creation functions and lifecycle rather than implementing a parallel session around a third-party library.
 - Keep App Host thin; it may resolve dependencies and call a domain factory but must not reimplement gameplay.
-- Keep provider room/matchmaking/reconnect behavior in multiplayer backends while gameplay commands and projections remain GameKit/app contracts.
+- Keep provider room/matchmaking/reconnect behavior in multiplayer backends while gameplay commands and projections remain GameKits/app contracts.
 - Use EventBus for low-frequency facts, systems/runtime state for hot paths, and React for low-frequency views.
 - Add an ADR and update long-term module/architecture docs when changing package ownership, public protocols, dependency direction, or native escape hatches.

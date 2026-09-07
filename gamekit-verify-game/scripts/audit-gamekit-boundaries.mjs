@@ -11,6 +11,7 @@ const root = resolve(positional[0] ?? process.cwd());
 
 const ignoredDirectories = new Set([
   ".git",
+  ".gitnexus",
   ".next",
   ".turbo",
   "build",
@@ -49,6 +50,7 @@ const concreteGamekitPackages = [
   "@gamekits/platform-tauri",
   "@gamekits/platform-web",
   "@gamekits/renderer-phaser",
+  "@gamekits/save-indexeddb",
   "@gamekits/world-koota"
 ];
 const reusableCorePackages = new Set([
@@ -56,6 +58,7 @@ const reusableCorePackages = new Set([
   "@gamekits/animator-core",
   "@gamekits/audio-core",
   "@gamekits/camera-core",
+  "@gamekits/character-controller",
   "@gamekits/combat",
   "@gamekits/core",
   "@gamekits/data",
@@ -92,8 +95,14 @@ function isTestPath(path) {
 }
 
 function isNativeBoundary(path) {
-  return /(?:^|\/)(?:adapter|adapters|backend|backends|driver|drivers|native|presentation|profiles?|realtime|renderer|server|ui|devtools)(?:\/|[-_.])/i.test(path) ||
-    /(?:^|\/)packages\/(?:devtools-ui|driver-phaser|driver-three|input-dom|multiplayer-colyseus|multiplayer-memory|navigation-graph|navigation-grid|navigation-navmesh|navigation-recast|physics-rapier2d|physics-rapier3d|platform-tauri|platform-web|react-ui|renderer-phaser|world-koota)(?:\/|$)/i.test(path);
+  return (
+    /(?:^|\/)(?:adapter|adapters|backend|backends|driver|drivers|native|presentation|profiles?|realtime|renderer|server|ui|devtools)(?:\/|[-_.])/i.test(
+      path
+    ) ||
+    /(?:^|\/)packages\/(?:devtools-ui|driver-phaser|driver-three|input-dom|multiplayer-colyseus|multiplayer-memory|navigation-graph|navigation-grid|navigation-navmesh|navigation-recast|physics-rapier2d|physics-rapier3d|platform-tauri|platform-web|react-ui|renderer-phaser|save-indexeddb|world-koota)(?:\/|$)/i.test(
+      path
+    )
+  );
 }
 
 function isGameplayPath(path) {
@@ -101,17 +110,22 @@ function isGameplayPath(path) {
 }
 
 function isReusableCorePath(path) {
-  return /^packages\/(?:ai-core|animator-core|audio-core|camera-core|combat|core|data|devtools|driver-core|event-bus|game-runtime|gas|input-core|multiplayer-core|navigation-core|physics-core|platform-core|renderer-core|save|tca|ui-core|world)(?:\/|$)/i.test(path);
+  return /^packages\/(?:ai-core|animator-core|audio-core|camera-core|character-controller|combat|core|data|devtools|driver-core|event-bus|game-runtime|gas|input-core|multiplayer-core|navigation-core|physics-core|platform-core|renderer-core|save|tca|ui-core|world)(?:\/|$)/i.test(
+    path
+  );
 }
 
 function matchesPackage(specifier, packageName) {
-  return specifier === packageName || specifier.startsWith(`${packageName}/`) ||
-    (packageName.endsWith("/") && specifier.startsWith(packageName));
+  return (
+    specifier === packageName ||
+    specifier.startsWith(`${packageName}/`) ||
+    (packageName.endsWith("/") && specifier.startsWith(packageName))
+  );
 }
 
 function importsFrom(text) {
   const values = [];
-  const pattern = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
+  const pattern = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["']([^"']+)["']/g;
   for (const match of text.matchAll(pattern)) {
     values.push({ specifier: match[1], index: match.index ?? 0 });
   }
@@ -144,14 +158,25 @@ async function auditPackage(absolute, path) {
   }
   stats.packages += 1;
   const runtimeDependencies = {
-    ...(manifest.dependencies ?? {}),
-    ...(manifest.peerDependencies ?? {}),
-    ...(manifest.optionalDependencies ?? {})
+    ...manifest.dependencies,
+    ...manifest.peerDependencies,
+    ...manifest.optionalDependencies
   };
   const declaredDependencies = {
     ...runtimeDependencies,
-    ...(manifest.devDependencies ?? {})
+    ...manifest.devDependencies
   };
+
+  for (const [name, spec] of Object.entries(declaredDependencies)) {
+    if (name.startsWith("@gamekit/") || String(spec).trim().startsWith("npm:@gamekit/")) {
+      add(
+        "error",
+        "legacy-gamekit-scope",
+        path,
+        `${name} uses the legacy @gamekit scope; install and import the published @gamekits package directly`
+      );
+    }
+  }
 
   const gamekitEntries = Object.entries(declaredDependencies)
     .filter(([name]) => name.startsWith("@gamekits/"))
@@ -161,23 +186,40 @@ async function auditPackage(absolute, path) {
   for (const [name, spec] of gamekitEntries) {
     const normalized = String(spec).trim();
     if (!normalized || normalized === "*" || normalized === "latest") {
-      add("error", "unpinned-gamekit-version", path, `${name} uses '${normalized || "empty"}'; use a verified prerelease channel or compatible version`);
+      add(
+        "error",
+        "unpinned-gamekit-version",
+        path,
+        `${name} uses '${normalized || "empty"}'; use the selected exact GameKits release`
+      );
     }
     if (/^[A-Za-z][A-Za-z+.-]*:/.test(normalized)) {
-      add("error", "non-registry-gamekit-source", path, `${name} must resolve from the npm registry`);
+      add(
+        "error",
+        "non-registry-gamekit-source",
+        path,
+        `${name} must resolve from the npm registry`
+      );
     }
     const version = normalized.match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/)?.[0];
     if (version) resolvedSpecs.add(version);
   }
 
   if (resolvedSpecs.size > 1) {
-    add("warning", "mixed-gamekit-versions", path, `Declared GameKit dependencies contain multiple explicit versions: ${[...resolvedSpecs].sort().join(", ")}`);
+    add(
+      "warning",
+      "mixed-gamekit-versions",
+      path,
+      `Declared GameKits dependencies contain multiple explicit versions: ${[...resolvedSpecs].sort().join(", ")}`
+    );
   }
 
   if (!reusableCorePackages.has(manifest.name)) return;
   for (const dependency of Object.keys(runtimeDependencies).sort()) {
-    if (nativePackages.some((name) => matchesPackage(dependency, name)) ||
-        concreteGamekitPackages.some((name) => matchesPackage(dependency, name))) {
+    if (
+      nativePackages.some((name) => matchesPackage(dependency, name)) ||
+      concreteGamekitPackages.some((name) => matchesPackage(dependency, name))
+    ) {
       add(
         "error",
         "core-concrete-dependency",
@@ -196,73 +238,178 @@ async function auditSource(absolute, path) {
   const gameplay = isGameplayPath(path);
 
   for (const match of text.matchAll(/\b(?:innerHTML\s*=|insertAdjacentHTML\s*\()/g)) {
-    add("error", "unsafe-html-construction", path, "Use React or explicit DOM nodes/textContent instead of HTML string construction", lineOf(text, match.index ?? 0));
+    add(
+      "error",
+      "unsafe-html-construction",
+      path,
+      "Use React or explicit DOM nodes/textContent instead of HTML string construction",
+      lineOf(text, match.index ?? 0)
+    );
   }
 
   for (const imported of importsFrom(text)) {
+    if (imported.specifier.startsWith("@gamekit/")) {
+      add(
+        "error",
+        "legacy-gamekit-scope",
+        path,
+        `${imported.specifier} uses the legacy scope; import the installed @gamekits package`,
+        lineOf(text, imported.index)
+      );
+    }
     const native = nativePackages.find((name) => matchesPackage(imported.specifier, name));
-    const concrete = concreteGamekitPackages.find((name) => matchesPackage(imported.specifier, name));
+    const concrete = concreteGamekitPackages.find((name) =>
+      matchesPackage(imported.specifier, name)
+    );
     const react = imported.specifier === "react" || imported.specifier.startsWith("react-dom");
     const testingSubpath = /^@gamekits\/[^/]+\/testing(?:\/|$)/.test(imported.specifier);
-    const implementationSubpath = /^@gamekits\/[^/]+\/(?:backend|playback)(?:\/|$)/.test(imported.specifier);
-    const serverSubpath = /^@gamekits\/multiplayer-colyseus\/server(?:\/|$)/.test(imported.specifier);
+    const implementationSubpath = /^@gamekits\/[^/]+\/(?:backend|playback)(?:\/|$)/.test(
+      imported.specifier
+    );
+    const serverSubpath = /^@gamekits\/multiplayer-colyseus\/server(?:\/|$)/.test(
+      imported.specifier
+    );
 
     if (!test && testingSubpath) {
-      add("error", "testing-subpath-outside-test", path, `${imported.specifier} is a test-only public subpath`, lineOf(text, imported.index));
+      add(
+        "error",
+        "testing-subpath-outside-test",
+        path,
+        `${imported.specifier} is a test-only public subpath`,
+        lineOf(text, imported.index)
+      );
     }
     if (!test && implementationSubpath && !nativeBoundary) {
-      add("error", "implementation-subpath-outside-boundary", path, `${imported.specifier} belongs in adapter, driver, backend, or presentation code`, lineOf(text, imported.index));
+      add(
+        "error",
+        "implementation-subpath-outside-boundary",
+        path,
+        `${imported.specifier} belongs in adapter, driver, backend, or presentation code`,
+        lineOf(text, imported.index)
+      );
     }
     if (!test && serverSubpath && !/(?:^|\/)(?:server|backend)(?:\/|[-_.])/i.test(path)) {
-      add("error", "server-subpath-outside-server", path, `${imported.specifier} belongs in server integration`, lineOf(text, imported.index));
+      add(
+        "error",
+        "server-subpath-outside-server",
+        path,
+        `${imported.specifier} belongs in server integration`,
+        lineOf(text, imported.index)
+      );
     }
 
     if (!test && react && gameplay && !nativeBoundary) {
-      add("error", "react-in-gameplay", path, `${imported.specifier} is imported by gameplay/domain code`, lineOf(text, imported.index));
+      add(
+        "error",
+        "react-in-gameplay",
+        path,
+        `${imported.specifier} is imported by gameplay/domain code`,
+        lineOf(text, imported.index)
+      );
     }
-    if (!test && concrete && gameplay && !nativeBoundary) {
+    if (!test && concrete && (gameplay || isReusableCorePath(path)) && !nativeBoundary) {
       const reusable = isReusableCorePath(path);
-      add(reusable ? "error" : "warning", reusable ? "concrete-gamekit-in-core" : "concrete-gamekit-import-review", path, reusable ? `${concrete} crosses into a reusable core/facade package` : `${concrete} is selected inside gameplay/domain code; confirm this is app orchestration rather than a reusable contract`, lineOf(text, imported.index));
+      add(
+        reusable ? "error" : "warning",
+        reusable ? "concrete-gamekit-in-core" : "concrete-gamekit-import-review",
+        path,
+        reusable
+          ? `${concrete} crosses into a reusable core/facade package`
+          : `${concrete} is selected inside gameplay/domain code; confirm this is app orchestration rather than a reusable contract`,
+        lineOf(text, imported.index)
+      );
     }
     if (!test && native && !nativeBoundary) {
       const reusable = isReusableCorePath(path);
-      add(reusable ? "error" : "warning", reusable ? "native-import-in-core" : "native-import-review", path, reusable ? `${native} crosses into a reusable core/facade package` : `${native} import is outside an obvious driver/adapter/profile/presentation/server/UI boundary`, lineOf(text, imported.index));
+      add(
+        reusable ? "error" : "warning",
+        reusable ? "native-import-in-core" : "native-import-review",
+        path,
+        reusable
+          ? `${native} crosses into a reusable core/facade package`
+          : `${native} import is outside an obvious driver/adapter/profile/presentation/server/UI boundary`,
+        lineOf(text, imported.index)
+      );
     }
   }
 
-  if (!test && /\bnew\s+(?:Phaser\.Game|THREE\.WebGLRenderer)\s*\(/.test(text) && !/(?:^|\/)drivers?(?:\/|[-_.])/i.test(path)) {
-    add("error", "external-runtime-owner", path, "Create Phaser/Three runtime through its GameKit Driver, not directly here");
+  if (
+    !test &&
+    /\bnew\s+(?:Phaser\.Game|THREE\.WebGLRenderer)\s*\(/.test(text) &&
+    !/(?:^|\/)drivers?(?:\/|[-_.])/i.test(path)
+  ) {
+    add(
+      "error",
+      "external-runtime-owner",
+      path,
+      "Create Phaser/Three runtime through its GameKits Driver, not directly here"
+    );
   }
 
-  if (/(?:^|\/)src\/index\.ts$/.test(path) && /\b(?:function|class)\s+\w+|\b(?:const|let|var)\s+\w+\s*=/.test(text)) {
-    add("warning", "index-implementation", path, "src/index.ts appears to contain implementation instead of only public exports");
+  if (
+    /(?:^|\/)src\/index\.ts$/.test(path) &&
+    /\b(?:function|class)\s+\w+|\b(?:const|let|var)\s+\w+\s*=/.test(text)
+  ) {
+    add(
+      "warning",
+      "index-implementation",
+      path,
+      "src/index.ts appears to contain implementation instead of only public exports"
+    );
   }
 
   for (const match of test ? [] : text.matchAll(/\.(?:emit|publish)\s*\(\s*["']([^"']+)["']/g)) {
-    if (/(?:position|transform|pointer[._-]?move|mouse[._-]?move|render.*patch|raw.*input|held.*input)/i.test(match[1])) {
-      add("warning", "high-frequency-event-review", path, `Review potentially high-frequency event '${match[1]}'`, lineOf(text, match.index ?? 0));
+    if (
+      /(?:position|transform|pointer[._-]?move|mouse[._-]?move|render.*patch|raw.*input|held.*input)/i.test(
+        match[1]
+      )
+    ) {
+      add(
+        "warning",
+        "high-frequency-event-review",
+        path,
+        `Review potentially high-frequency event '${match[1]}'`,
+        lineOf(text, match.index ?? 0)
+      );
     }
   }
 
-  if (!test && text.includes("addEventListener(") && !text.includes("removeEventListener(") && !/\bonce\s*:\s*true\b/.test(text) && !/\bsignal\s*:/.test(text)) {
-    add("warning", "listener-cleanup-review", path, "Event listener has no visible removal, once option, or AbortSignal in the same file");
+  if (
+    !test &&
+    text.includes("addEventListener(") &&
+    !text.includes("removeEventListener(") &&
+    !/\bonce\s*:\s*true\b/.test(text) &&
+    !/\bsignal\s*:/.test(text)
+  ) {
+    add(
+      "warning",
+      "listener-cleanup-review",
+      path,
+      "Event listener has no visible removal, once option, or AbortSignal in the same file"
+    );
   }
 }
 
 try {
   await walk(root);
 } catch (error) {
-  const result = { root, error: error.message, findings: [], summary: { errors: 1, warnings: 0, ...stats } };
+  const result = {
+    root,
+    error: error.message,
+    findings: [],
+    summary: { errors: 1, warnings: 0, ...stats }
+  };
   if (json) console.log(JSON.stringify(result, null, 2));
   else console.error(`Audit failed for ${root}: ${error.message}`);
   process.exitCode = 2;
   process.exit();
 }
 
-findings.sort((left, right) =>
-  left.file.localeCompare(right.file) ||
-  (left.line ?? 0) - (right.line ?? 0) ||
-  left.rule.localeCompare(right.rule)
+findings.sort(
+  (left, right) =>
+    left.file.localeCompare(right.file) ||
+    (left.line ?? 0) - (right.line ?? 0) ||
+    left.rule.localeCompare(right.rule)
 );
 const summary = {
   errors: findings.filter((finding) => finding.severity === "error").length,
@@ -274,12 +421,16 @@ const result = { root, findings, summary };
 if (json) {
   console.log(JSON.stringify(result, null, 2));
 } else {
-  console.log(`GameKit boundary audit: ${root}`);
+  console.log(`GameKits boundary audit: ${root}`);
   for (const finding of findings) {
     const location = `${finding.file}${finding.line ? `:${finding.line}` : ""}`;
-    console.log(`${finding.severity.toUpperCase()} ${finding.rule} ${location} — ${finding.message}`);
+    console.log(
+      `${finding.severity.toUpperCase()} ${finding.rule} ${location} — ${finding.message}`
+    );
   }
-  console.log(`Summary: ${summary.errors} error(s), ${summary.warnings} warning(s), ${summary.files} source file(s), ${summary.packages} package manifest(s)`);
+  console.log(
+    `Summary: ${summary.errors} error(s), ${summary.warnings} warning(s), ${summary.files} source file(s), ${summary.packages} package manifest(s)`
+  );
 }
 
 if (strict && findings.length > 0) process.exitCode = 1;
